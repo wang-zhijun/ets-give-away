@@ -1,0 +1,7 @@
+# Crash Log
+crash.log
+/_build
+/cover
+/deps
+erl_crash.dump
+*.ez

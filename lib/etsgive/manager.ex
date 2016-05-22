@@ -1,9 +1,9 @@
-defmodule EtsGive.Mrg do
+defmodule EtsGive.Manager do
   use GenServer
   @name __MODULE__
 
   defmodule State do
-    defstruct init: true, table_id: nil
+    defstruct table_id: nil
   end
 
   ###=========================
@@ -19,22 +19,29 @@ defmodule EtsGive.Mrg do
   end
 
   def init(:ok) do
+    # EtsGive.Serverとlinkしているので，EtsGive.Serverが死ぬときにEtsGive.Managerが死なないように
     Process.flag(:trap_exit, true)
+    # EtsGive.ManagerにETSテーブルを作成して，ownerをEtsGive.Serverに変更
     gift()
     {:ok, %State{}}
   end
 
+  def handle_call(_msg, _from, state) do
+    {:reply, :ok, state}
+  end
   def handle_cast({:gift, data}, state) do
-    server = Process.whereis(EtsGive.Srv)
-    # managerは自分trap_exitできるから、serverとlinkして、serverが死んだらメッセージを受け取る
+    server = Process.whereis(EtsGive.Server)
+    # EtsGive.Managerは自分trap_exitできるので，EtsGive.Serverとlinkして、EtsGive.Serverが死んだらメッセージを受け取る
     Process.link(server) 
     # PublicのETSを使わなくて、嬉しい
-    # privateにするとobserverでも中身がみられない
+    # ETSテーブルをprivateにすると`observer.start`でもETSテーブルの中身がみられない
     table_id = :ets.new(@name, [:private])
     :ets.insert(table_id, data)
-    # managerはこの後すぐtableIDをserverのほうに譲るから、serverが死ぬと、managerがこのtableIdの中身を継承すると設定しておく
+    # EtsGive.Managerはこの後すぐtable_idをEtsGive.Serverのほうに譲る.
+    # EtsGive.Serverが死ぬと、EtsGive.Managerがこのtable_idの中身を継承すると設定しておく
     :ets.setopts(table_id, {:heir, self(), data})
-    # ETSテーブルのオーナー身分をserverに譲る。これからserverのほうがこのprivateのETSに対して、操作できるようになる
+    # ETSテーブルのオーナー身分をEtsGive.Serverに譲る。
+    # これからEtsGive.ServerのほうがこのprivateのETSに対して、操作できるようになる
     :ets.give_away(table_id, server, data)
     {:noreply, struct(state, table_id: table_id)}
   end
@@ -61,8 +68,9 @@ defmodule EtsGive.Mrg do
     {:noreply, struct(state, table_id: table_id)}
   end
 
+  # EtsGive.MangaerはSupervisorがEtsGive.Serverを再起動完了まで待つ
   def wait_for_server() do
-    case Process.whereis(EtsGive.Srv) do
+    case Process.whereis(EtsGive.Server) do
       nil ->
         :timer.sleep(1)
         wait_for_server()

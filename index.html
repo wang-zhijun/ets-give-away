@@ -19,7 +19,7 @@
 
   <!-- Style theme. More available in /themes/style/ or create your own. -->
   <!-- <link rel="stylesheet" media="screen" href="themes/style/web-2.0.css"> -->
-  <link rel="stylesheet" media="screen" href="themes/style/neon.css">
+  <link rel="stylesheet" media="screen" href="themes/style/swiss.css">
 
   <!-- Transition theme. More available in /themes/transition/ or create your own. -->
   <!-- <link rel="stylesheet" media="screen" href="themes/transition/horizontal-slide.css"> -->
@@ -36,6 +36,14 @@
 
     <!-- Begin slides. Just make elements with a class of slide. -->
 
+    <section class="slide" id="self-introduce">
+      <h2>自己紹介</h2>
+      <ol>
+        <li>名前: 王志軍(おう　しぐん)</li>
+        <li>IDCフロンティアのプログラマで、ストレージ関連の仕事をしています。</li>
+        <li>2014年Erlangを知って、ポンコツの板金包まれたフェラーリという表現に笑いが止まらない。</li>
+      </ol>
+    </section>
     <section class="slide" id="title-slide">
       <h1>ets:give_away/3</h1>
     </section>
@@ -47,8 +55,19 @@
       <h2> </h2>
       <img src="images/ets2.png">
     </section>
+    <section class="slide" id="resolution-article">
+      <h2>解決策<h2>
+      <ul>
+        <li>
+          <p>もう一個のManagerプロセスを作る
+
+          <pre>
+          http://steve.vinoski.net/blog/2011/03/23/dont-lose-your-ets-tables/</pre></p>
+        </li>
+      </ul>
+    </section>
     <section class="slide" id="ets3">
-      <h2> </h2>
+      <h2>:ets.give_awayでオーナーを変える</h2>
       <img src="images/ets3.png">
     </section>
     <section class="slide" id="ets4">
@@ -58,6 +77,67 @@
     <section class="slide" id="ets5">
       <h2> </h2>
       <img src="images/ets5.png">
+    </section>
+    <section class="slide" id="ets6">
+      <h2>SupervisorがServerとManagerを起動 </h2>
+      <pre>
+      def start(_type, _args) do
+        ...
+        children = [
+        worker(EtsGive.Server, []),
+        worker(EtsGive.Manager, [])
+        ]
+      ...
+      Supervisor.start_link(children, opts)
+      </pre>
+    </section>
+    <section class="slide" id="ets7">
+      <h2>Managerの中にtrap_exitをtrueに設定</h2>
+      <pre>
+      def init(:ok) do
+        # Serverが死んでもManagerを死なないようにするため
+        Process.flag(:trap_exit, true)
+        gift()
+        {:ok, %State{}}
+      end
+      </pre>
+    </section>
+    <section class="slide" id="ets7">
+      <h2>Managerが後継者を自分だとして設定</h2>
+      <pre>
+      :ets.setopts(table_id, {:heir, self(), data})
+      :ets.give_away(table_id, server, data)
+      </pre>
+    </section>
+    <section class="slide" id="ets8">
+      <h2>link -> setopts -> give_away</h2>
+      <pre>
+      def handle_cast({:gift, data}, state) do
+        server = Process.whereis(EtsGive.Server)
+        Process.link(server) <----
+
+        table_id = :ets.new(@name, [:private])
+        :ets.insert(table_id, data)
+
+        :ets.setopts(table_id, {:heir, self(), data}) <----
+        :ets.give_away(table_id, server, data)  <----
+
+        {:noreply, struct(state, table_id: table_id)}
+      end
+      </pre>
+    </section>
+    <section class="slide" id="ets9">
+      <h2>Serverが死ぬと, ETS-TRANSFERメッセージくる</h2>
+      <pre>
+      def handle_info({:'ETS-TRANSFER', table_id, from, data}, state) do
+        server = wait_for_server()
+
+        Process.link(server)
+        :ets.give_away(table_id, server, data)
+
+        {:noreply, struct(state, table_id: table_id)}
+      end
+      </pre>
     </section>
 
     <!-- End slides. -->

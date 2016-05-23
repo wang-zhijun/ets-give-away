@@ -38,14 +38,21 @@
 
     <section class="slide" id="self-introduce">
       <h2>自己紹介</h2>
-      <ol>
+      <ul>
         <li>名前: 王志軍(おう　しぐん)</li>
         <li>IDCフロンティアのプログラマで、ストレージ関連の仕事をしています。</li>
-        <li>2014年Erlangを知って、ポンコツの板金包まれたフェラーリという表現に笑いが止まらない。</li>
-      </ol>
+        <li>2014年Erlangを知って、ポンコツの板金包まれたフェラーリという表現に笑いが止まりません。</li>
+      </ul>
     </section>
     <section class="slide" id="title-slide">
       <h1>ets:give_away/3</h1>
+    </section>
+    <section class="slide" id="ets0">
+      <h2>ETSテーブルとは</h2>
+      <ul>
+        <li>大量なデータを保存するためのストレージ</li>
+        <li>In-Memory, プロセスが死ぬとデータが消える
+      </ul>
     </section>
     <section class="slide" id="ets1">
       <h2> </h2>
@@ -110,7 +117,7 @@
       </pre>
     </section>
     <section class="slide" id="ets8">
-      <h2>link -> setopts -> give_away</h2>
+      <h2>gift()関数  link -> setopts -> give_away</h2>
       <pre>
       def handle_cast({:gift, data}, state) do
         server = Process.whereis(EtsGive.Server)
